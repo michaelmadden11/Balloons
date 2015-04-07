@@ -16,12 +16,12 @@ public class MainGameFragment extends Fragment
    public View onCreateView(LayoutInflater inflater, ViewGroup container,
       Bundle savedInstanceState)
    {
-      super.onCreateView(inflater, container, savedInstanceState);    
+       super.onCreateView(inflater, container, savedInstanceState);
       View view = 
          inflater.inflate(R.layout.fragment_game, container, false);
 
       mainGameView = (MainGameView) view.findViewById(R.id.mainGameView);
-      return view;
+       return view;
    }
 
    @Override

@@ -36,6 +36,8 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     private GameThread gameThread; // runs the main game loop
     private Activity mainActivity; // keep a reference to the main Activity
+    private TextView UIScore;
+    private TextView UILives;
 
     private boolean isGameOver = true;
 
@@ -105,10 +107,27 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     public void startNewGame()
     {
-       // TextView t = (TextView) findViewById(R.id.UIScore);
-       // t.setText("" + score);
+        UIScore = (TextView) mainActivity.findViewById(R.id.UIScore);
+        UIScore.setText("" + score);
+
+        UILives = (TextView) mainActivity.findViewById(R.id.UILives);
+        UILives.setText("Lives:  " + lives);
+
+        AddBalloons(10);
+
+        if (isGameOver)
+        {
+            isGameOver = false;
+            gameThread = new GameThread(getHolder());
+            gameThread.start(); // start the main game loop going
+        }
+    }
+
+
+    private void AddBalloons(int numberOfBalloons)
+    {
         Random rand = new Random();
-        for(int i = 0; i < 10; i++)
+        for(int i = 0; i < numberOfBalloons; i++)
         {
             int xCoordinate = rand.nextInt(screenWidth);
             int balloonColorNumber;
@@ -130,13 +149,6 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
             }
             Balloon addABalloon = new Balloon(xCoordinate,screenHeight + 35 + yAddition,balloonColorNumber, randomSpeedNumber);
             allBalloons.add(addABalloon);
-        }
-
-        if (isGameOver)
-        {
-            isGameOver = false;
-            gameThread = new GameThread(getHolder());
-            gameThread.start(); // start the main game loop going
         }
     }
 
@@ -167,7 +179,9 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
             for(int i = 0; i < allBalloons.size(); i++)
             {
                 Balloon thisBalloon = allBalloons.get(i);
+                canvas.drawCircle(thisBalloon.width, thisBalloon.height, radius + 2, blackPaint);
                 canvas.drawCircle(thisBalloon.width, thisBalloon.height, radius, thisBalloon.balloonColor);
+                canvas.drawLine(thisBalloon.width, thisBalloon.height + radius, thisBalloon.width + 100, thisBalloon.height + 100, blackPaint);
             }
         }
     }
@@ -243,11 +257,11 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
                 if(balloonTouch)
                 {
-                    score++;
                     if(currentBalloon.health == 1)
                     {
                         allBalloons.remove(i);
-                        score++;
+                        score += 10;
+                        UIScore.setText("" + score);
                     }
                     else
                     {
@@ -312,9 +326,9 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                         gameStep();         // update game state
                         updateView(canvas); // draw using the canvas
                     }
-                    //Thread.sleep(1); // if you want to slow down the action...
-                //} catch (InterruptedException ex) {
-                //    Log.e(TAG,ex.toString());
+                    Thread.sleep(1); // if you want to slow down the action...
+                } catch (InterruptedException ex) {
+                    Log.e(TAG,ex.toString());
                 }
                 finally  // regardless if any errors happen...
                 {
