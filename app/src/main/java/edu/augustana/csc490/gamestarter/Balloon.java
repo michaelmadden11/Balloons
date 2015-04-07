@@ -26,13 +26,48 @@ public class Balloon
     public int health;
     public int width;
     public int height;
+    public int speed;
 
-    public Balloon(int x, int y, int health, Paint balloonColor)
+    private Paint hardPaint;
+    private Paint mediumPaint;
+    private Paint easyPaint;
+    private Paint blackPaint;
+
+    public Balloon(int x, int y, int health, int speed)
     {
+        hardPaint = new Paint();
+        hardPaint.setColor(Color.RED);
+
+        mediumPaint = new Paint();
+        mediumPaint.setColor(Color.rgb(255,153,0));
+
+        easyPaint = new Paint();
+        easyPaint.setColor(Color.YELLOW);
+
+        blackPaint = new Paint();
+        blackPaint.setColor(Color.BLACK);
+
         width = x;
         height = y;
         this.health = health;
-        this.balloonColor = balloonColor;
+        this.speed = speed;
+
+        if(health == 1)
+        {
+            balloonColor = easyPaint;
+        }
+        else if(health == 2)
+        {
+            balloonColor = mediumPaint;
+        }
+        else if(health == 3)
+        {
+            balloonColor = hardPaint;
+        }
+        else
+        {
+            balloonColor = blackPaint;
+        }
     }
 
     public int getHealth()
@@ -43,4 +78,5 @@ public class Balloon
     {
         return balloonColor;
     }
+
 }

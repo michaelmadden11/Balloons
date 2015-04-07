@@ -13,12 +13,14 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Random;
+import java.util.Timer;
 
 public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 {
@@ -36,11 +39,11 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     private boolean isGameOver = true;
 
-    private int speed;
-    int timer;
+    private int speed = 10;
 
     private int x;
     private int y;
+    private int radius = 40;
     private int screenWidth;
     private int screenHeight;
 
@@ -49,21 +52,29 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     private Paint hardPaint;
     private Paint mediumPaint;
     private Paint easyPaint;
+    private Paint blackPaint;
 
     private List<Balloon> allBalloons;
+    private int level;
+    private Timer timer;
+    int score = 0;
+    int lives = 3;
 
     public MainGameView(Context context, AttributeSet atts)
     {
         super(context, atts);
         mainActivity = (Activity) context;
-
         getHolder().addCallback(this);
+
+        TextView timerTextView;
+        long startTime = 0;
+
+        //runs without a timer by reposting this handler at the end of the runnable
 
         myPaint = new Paint();
         myPaint.setColor(Color.BLUE);
         backgroundPaint = new Paint();
         backgroundPaint.setColor(Color.CYAN);
-
         hardPaint = new Paint();
         hardPaint.setColor(Color.RED);
 
@@ -73,7 +84,11 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         easyPaint = new Paint();
         easyPaint.setColor(Color.YELLOW);
 
+        blackPaint = new Paint();
+        blackPaint.setColor(Color.BLACK);
+
         allBalloons = new ArrayList<Balloon>();
+
     }
 
     // called when the size changes (and first time, when view is created)
@@ -90,27 +105,30 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     public void startNewGame()
     {
+       // TextView t = (TextView) findViewById(R.id.UIScore);
+       // t.setText("" + score);
         Random rand = new Random();
         for(int i = 0; i < 10; i++)
         {
             int xCoordinate = rand.nextInt(screenWidth);
-            int balloonColorNumber = rand.nextInt(10);
+            int balloonColorNumber;
+            int randomBalloonColorNumber = rand.nextInt(10);
+            int randomSpeedNumber = rand.nextInt(5);
+            int yAddition = rand.nextInt(250);
 
-            Paint thisBalloonColor;
-
-            if(balloonColorNumber < 6)
+            if(randomBalloonColorNumber < 6)
             {
-                thisBalloonColor = easyPaint;
+                balloonColorNumber = 1;
             }
-            else if(balloonColorNumber < 9)
+            else if(randomBalloonColorNumber < 9)
             {
-                thisBalloonColor = mediumPaint;
+                balloonColorNumber = 2;
             }
             else
             {
-                thisBalloonColor = hardPaint;
+                balloonColorNumber = 3;
             }
-            Balloon addABalloon = new Balloon(xCoordinate,screenHeight + 35,balloonColorNumber, thisBalloonColor);
+            Balloon addABalloon = new Balloon(xCoordinate,screenHeight + 35 + yAddition,balloonColorNumber, randomSpeedNumber);
             allBalloons.add(addABalloon);
         }
 
@@ -125,11 +143,21 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     private void gameStep()
     {
+        if(lives <= 0)
+        {
+            stopGame();
+        }
        for(int i = 0; i < allBalloons.size(); i++)
        {
-           allBalloons.get(i).height -= speed;
+           Balloon currentBalloon = allBalloons.get(i);
+           if(currentBalloon.height <= 30 - radius)
+           {
+            lives -= 1;
+            allBalloons.remove(i);
+           }
+           currentBalloon.height -= speed;
        }
-       speed++;
+       //speed++;
     }
 
     public void updateView(Canvas canvas)
@@ -139,7 +167,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
             for(int i = 0; i < allBalloons.size(); i++)
             {
                 Balloon thisBalloon = allBalloons.get(i);
-                canvas.drawCircle(thisBalloon.width, thisBalloon.height, 40, thisBalloon.balloonColor);
+                canvas.drawCircle(thisBalloon.width, thisBalloon.height, radius, thisBalloon.balloonColor);
             }
         }
     }
@@ -198,9 +226,55 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
             this.y = (int) e.getY();
         }
 
+        for(int i = 0; i < allBalloons.size(); i++)
+        {
+            boolean balloonTouch = true;
+            if(allBalloons.get(i) != null)
+            {
+                Balloon currentBalloon = allBalloons.get(i);
+                if(!(x >= currentBalloon.width - radius && x <= currentBalloon.width + radius))
+                {
+                    balloonTouch = false;
+                }
+                if(!(y >= currentBalloon.height - radius && y <= currentBalloon.height + radius))
+                {
+                    balloonTouch = false;
+                }
+
+                if(balloonTouch)
+                {
+                    score++;
+                    if(currentBalloon.health == 1)
+                    {
+                        allBalloons.remove(i);
+                        score++;
+                    }
+                    else
+                    {
+                    updateBalloonColor(currentBalloon);
+                    }
+                    return true;
+                }
+            }
+        }
         return true;
     }
-
+    private void updateBalloonColor(Balloon thisBalloon)
+    {
+        thisBalloon.health -= 1;
+        if(thisBalloon.health == 1)
+        {
+            thisBalloon.balloonColor = easyPaint;
+        }
+        else if(thisBalloon.health == 2)
+        {
+            thisBalloon.balloonColor = mediumPaint;
+        }
+        else if(thisBalloon.health == 3)
+        {
+            thisBalloon.balloonColor = hardPaint;
+        }
+    }
     // Thread subclass to run the main game loop
     private class GameThread extends Thread
     {
@@ -238,9 +312,9 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                         gameStep();         // update game state
                         updateView(canvas); // draw using the canvas
                     }
-                    Thread.sleep(1); // if you want to slow down the action...
-                } catch (InterruptedException ex) {
-                    Log.e(TAG,ex.toString());
+                    //Thread.sleep(1); // if you want to slow down the action...
+                //} catch (InterruptedException ex) {
+                //    Log.e(TAG,ex.toString());
                 }
                 finally  // regardless if any errors happen...
                 {
