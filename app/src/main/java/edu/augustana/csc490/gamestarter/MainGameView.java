@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Random;
 import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 {
@@ -38,6 +39,8 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     private Activity mainActivity; // keep a reference to the main Activity
     private TextView UIScore;
     private TextView UILives;
+    Timer timer;
+    MyTimerTask myTimerTask;
 
     private boolean isGameOver = true;
 
@@ -57,10 +60,11 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     private Paint blackPaint;
 
     private List<Balloon> allBalloons;
-    private int level;
-    private Timer timer;
+    private int level = 0;
     int score = 0;
     int lives = 3;
+    int seconds = 0;
+    boolean addBalloons = true;
 
     public MainGameView(Context context, AttributeSet atts)
     {
@@ -68,15 +72,10 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         mainActivity = (Activity) context;
         getHolder().addCallback(this);
 
-        TextView timerTextView;
-        long startTime = 0;
-
-        //runs without a timer by reposting this handler at the end of the runnable
-
         myPaint = new Paint();
         myPaint.setColor(Color.BLUE);
         backgroundPaint = new Paint();
-        backgroundPaint.setColor(Color.CYAN);
+        backgroundPaint.setColor(Color.rgb(135,206,235));
         hardPaint = new Paint();
         hardPaint.setColor(Color.RED);
 
@@ -90,6 +89,10 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         blackPaint.setColor(Color.BLACK);
 
         allBalloons = new ArrayList<Balloon>();
+
+        timer = new Timer();
+        myTimerTask = new MyTimerTask();
+        timer.scheduleAtFixedRate(myTimerTask, 0, 1000);
 
     }
 
@@ -113,8 +116,6 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         UILives = (TextView) mainActivity.findViewById(R.id.UILives);
         UILives.setText("Lives:  " + lives);
 
-        AddBalloons(10);
-
         if (isGameOver)
         {
             isGameOver = false;
@@ -123,7 +124,10 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         }
     }
 
+    private void updateLevel()
+    {
 
+    }
     private void AddBalloons(int numberOfBalloons)
     {
         Random rand = new Random();
@@ -131,21 +135,25 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         {
             int xCoordinate = rand.nextInt(screenWidth);
             int balloonColorNumber;
-            int randomBalloonColorNumber = rand.nextInt(10);
+            int randomBalloonColorNumber = rand.nextInt(21);
             int randomSpeedNumber = rand.nextInt(5);
             int yAddition = rand.nextInt(250);
 
-            if(randomBalloonColorNumber < 6)
+            if(randomBalloonColorNumber <= 9)
             {
                 balloonColorNumber = 1;
             }
-            else if(randomBalloonColorNumber < 9)
+            else if(randomBalloonColorNumber <= 15)
             {
                 balloonColorNumber = 2;
             }
-            else
+            else if(randomBalloonColorNumber <= 18)
             {
                 balloonColorNumber = 3;
+            }
+            else
+            {
+                balloonColorNumber = 5;
             }
             Balloon addABalloon = new Balloon(xCoordinate,screenHeight + 35 + yAddition,balloonColorNumber, randomSpeedNumber);
             allBalloons.add(addABalloon);
@@ -162,13 +170,17 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
        for(int i = 0; i < allBalloons.size(); i++)
        {
            Balloon currentBalloon = allBalloons.get(i);
-           if(currentBalloon.height <= 30 - radius)
+           if(currentBalloon.height <= 30 - radius && currentBalloon.health != 5)
            {
             lives -= 1;
             allBalloons.remove(i);
            }
            currentBalloon.height -= speed;
        }
+        if(addBalloons){
+            AddBalloons(level);
+            addBalloons = false;
+        }
        //speed++;
     }
 
@@ -181,7 +193,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                 Balloon thisBalloon = allBalloons.get(i);
                 canvas.drawCircle(thisBalloon.width, thisBalloon.height, radius + 2, blackPaint);
                 canvas.drawCircle(thisBalloon.width, thisBalloon.height, radius, thisBalloon.balloonColor);
-                canvas.drawLine(thisBalloon.width, thisBalloon.height + radius, thisBalloon.width + 100, thisBalloon.height + 100, blackPaint);
+                //canvas.drawLine(thisBalloon.width, thisBalloon.height + radius, thisBalloon.width, thisBalloon.height + 200, blackPaint);
             }
         }
     }
@@ -234,40 +246,40 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         @Override
     public boolean onTouchEvent(MotionEvent e)
     {
-        if (e.getAction() == MotionEvent.ACTION_DOWN)
-        {
+        if (e.getAction() == MotionEvent.ACTION_DOWN) {
             this.x = (int) e.getX();
             this.y = (int) e.getY();
-        }
 
-        for(int i = 0; i < allBalloons.size(); i++)
-        {
-            boolean balloonTouch = true;
-            if(allBalloons.get(i) != null)
-            {
-                Balloon currentBalloon = allBalloons.get(i);
-                if(!(x >= currentBalloon.width - radius && x <= currentBalloon.width + radius))
-                {
-                    balloonTouch = false;
-                }
-                if(!(y >= currentBalloon.height - radius && y <= currentBalloon.height + radius))
-                {
-                    balloonTouch = false;
-                }
 
-                if(balloonTouch)
+            for (int i = allBalloons.size() - 1; i >= 0; i--) {
+                boolean balloonTouch = true;
+                if(allBalloons.get(i) != null)
                 {
-                    if(currentBalloon.health == 1)
-                    {
-                        allBalloons.remove(i);
-                        score += 10;
-                        UIScore.setText("" + score);
+                    Balloon currentBalloon = allBalloons.get(i);
+                    if (!(x >= currentBalloon.width - radius && x <= currentBalloon.width + radius)) {
+                        balloonTouch = false;
                     }
-                    else
-                    {
-                    updateBalloonColor(currentBalloon);
+                    if (!(y >= currentBalloon.height - radius && y <= currentBalloon.height + radius)) {
+                        balloonTouch = false;
                     }
-                    return true;
+
+                    if (balloonTouch) {
+                        if (currentBalloon.health == 1) {
+                            allBalloons.remove(currentBalloon);
+                            score += 10;
+                            UIScore.setText("" + score);
+                        }
+                        else if(currentBalloon.health == 5)
+                        {
+                            lives -= 1;
+                            allBalloons.remove(currentBalloon);
+                        }
+                        else {
+                            updateBalloonColor(currentBalloon);
+                        }
+                        balloonTouch = false;
+                        return true;
+                    }
                 }
             }
         }
@@ -275,7 +287,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     }
     private void updateBalloonColor(Balloon thisBalloon)
     {
-        thisBalloon.health -= 1;
+        thisBalloon.health = thisBalloon.health - 1;
         if(thisBalloon.health == 1)
         {
             thisBalloon.balloonColor = easyPaint;
@@ -290,47 +302,39 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         }
     }
     // Thread subclass to run the main game loop
-    private class GameThread extends Thread
-    {
+    private class GameThread extends Thread {
         private SurfaceHolder surfaceHolder; // for manipulating canvas
         private boolean threadIsRunning = true; // running by default
 
         // initializes the surface holder
-        public GameThread(SurfaceHolder holder)
-        {
+        public GameThread(SurfaceHolder holder) {
             surfaceHolder = holder;
             setName("GameThread");
         }
 
         // changes running state
-        public void setRunning(boolean running)
-        {
+        public void setRunning(boolean running) {
             threadIsRunning = running;
         }
 
         @Override
-        public void run()
-        {
+        public void run() {
             Canvas canvas = null;
 
-            while (threadIsRunning)
-            {
-                try
-                {
+            while (threadIsRunning) {
+                try {
                     // get Canvas for exclusive drawing from this thread
                     canvas = surfaceHolder.lockCanvas(null);
 
                     // lock the surfaceHolder for drawing
-                    synchronized(surfaceHolder)
-                    {
+                    synchronized (surfaceHolder) {
                         gameStep();         // update game state
                         updateView(canvas); // draw using the canvas
                     }
                     Thread.sleep(1); // if you want to slow down the action...
                 } catch (InterruptedException ex) {
-                    Log.e(TAG,ex.toString());
-                }
-                finally  // regardless if any errors happen...
+                    Log.e(TAG, ex.toString());
+                } finally  // regardless if any errors happen...
                 {
                     // make sure we unlock canvas so other threads can use it
                     if (canvas != null)
@@ -338,5 +342,18 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                 }
             }
         }
+    }
+    class MyTimerTask extends TimerTask {
+
+        @Override
+        public void run() {
+            seconds += 1;
+            level = seconds / 10;
+            if(level < 1){
+                level = 1;
+            }
+            addBalloons = true;
+        }
+
     }
 }
