@@ -2,6 +2,7 @@
 // Displays and controls the Cannon Game
 package edu.augustana.csc490.gamestarter;
 
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.app.Activity;
@@ -19,6 +20,8 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -26,6 +29,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import android.content.Context;
+
 
 public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 {
@@ -39,7 +44,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     private boolean isGameOver = true;
 
-    private int speed = 10;
+    private int speed = 2;
 
     private int x;
     private int y;
@@ -55,6 +60,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     private Paint blackPaint;
 
     private Bitmap backgroundBitMap;
+    private Bitmap skullBitMap;
 
     private List<Balloon> allBalloons;
     private int level;
@@ -62,6 +68,8 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     int lives;
     int seconds;
     boolean addBalloons = true;
+    boolean gameIsRunning = true;
+    boolean newGame = true;
 
 
     public MainGameView(Context context, AttributeSet atts)
@@ -89,6 +97,13 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         backgroundBitMap = BitmapFactory.decodeResource(getResources(), R.drawable.sky);
         backgroundBitMap = backgroundBitMap.createScaledBitmap(backgroundBitMap,675, 1000, true);
 
+        skullBitMap = BitmapFactory.decodeResource(getResources(), R.drawable.skull);
+        skullBitMap = skullBitMap.createScaledBitmap(skullBitMap,radius * 2 + 2, radius * 2 + 2, true);
+
+        timer = new Timer();
+        myTimerTask = new MyTimerTask();
+        timer.scheduleAtFixedRate(myTimerTask, 0, 1000);
+
     }
 
     // called when the size changes (and first time, when view is created)
@@ -99,8 +114,11 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
         screenWidth = w;
         screenHeight = h;
-
-        startNewGame();
+        if(newGame)
+        {
+            showGameDialog("New Game", "Welcome to Pop the Balloons! Click play to begin.", "Play");
+            newGame = false;
+        }
     }
 
     public void startNewGame()
@@ -116,9 +134,6 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         UILives = (TextView) mainActivity.findViewById(R.id.UILives);
         UILives.setText("Lives:  " + lives);
 
-        timer = new Timer();
-        myTimerTask = new MyTimerTask();
-        timer.scheduleAtFixedRate(myTimerTask, 0, 1000);
         isGameOver = true;
 
 
@@ -149,7 +164,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
             {
                 balloonColorNumber = 2;
             }
-            else if(randomBalloonColorNumber <= 18)
+            else if(randomBalloonColorNumber <= 19)
             {
                 balloonColorNumber = 3;
             }
@@ -165,6 +180,19 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     private void gameStep()
     {
+        mainActivity.runOnUiThread(
+                new Runnable() {
+                    public void run() {
+                        do{
+                            UILives = (TextView) mainActivity.findViewById(R.id.UILives);
+                            UILives.setText("Lives:  " + lives);
+                        }
+                        while(gameIsRunning);
+
+                    }
+                }
+                // end Runnable
+        ); // end call to runOnUiThread
         if(lives <= 0)
         {
             stopGame();
@@ -195,6 +223,10 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                 Balloon thisBalloon = allBalloons.get(i);
                 canvas.drawCircle(thisBalloon.width, thisBalloon.height, radius + 2, blackPaint);
                 canvas.drawCircle(thisBalloon.width, thisBalloon.height, radius, thisBalloon.balloonColor);
+                if(thisBalloon.health == 5)
+                {
+                    canvas.drawBitmap(skullBitMap, thisBalloon.width - radius, thisBalloon.height - radius, backgroundPaint);
+                }
                 //canvas.drawLine(thisBalloon.width, thisBalloon.height + radius, thisBalloon.width, thisBalloon.height + 200, blackPaint);
             }
         }
@@ -206,10 +238,15 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         if (gameThread != null){
             gameThread.setRunning(false);
         }
-        showGameOverDialog();
+        // highScore = getResources().getInteger(R.integer.high_score);
+        //if(score > highScore){
+            //highScore = score;
+        //}
+        showGameDialog("Game Over", "You popped " + score + " balloons! Would you like to play again?", "Reset");
     }
 
-    private void showGameOverDialog() {
+    //Code help from Reed Kottke for showGameOverDialog
+    public void showGameDialog(final String title, final String message, final String positiveButton) {
 
         final DialogFragment gameResult =
                 new DialogFragment() {
@@ -218,20 +255,20 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                     public Dialog onCreateDialog(Bundle bundle) {
                         // create dialog displaying String resource for messageId
                         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-                        builder.setTitle("Game Over");
-                        builder.setMessage("You popped " + score + " balloons! Would you like to play again?");
-                        builder.setPositiveButton("Reset", new DialogInterface.OnClickListener() {
+                        builder.setTitle(title);
+                        builder.setMessage(message);
+                        builder.setPositiveButton(positiveButton, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 startNewGame();
                             }
                         });
-                        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
+                        //builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                        //    @Override
+                        //    public void onClick(DialogInterface dialog, int which) {
 
-                            }
-                        });
+                        //    }
+                       // });
                         return builder.create(); // return the AlertDialog
                     } // end method onCreateDialog
                 }; // end DialogFragment anonymous inner class
@@ -241,8 +278,10 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                     public void run() {
                         gameResult.setCancelable(false); // modal dialog
                         gameResult.show(mainActivity.getFragmentManager(), "results");
+                        gameIsRunning = false;
                     }
-                } // end Runnable
+                }
+                // end Runnable
         ); // end call to runOnUiThread
     } // end method showGameOverDialog
 

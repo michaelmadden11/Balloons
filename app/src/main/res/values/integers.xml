@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pop the Balloons!</string>
+    <integer name="high_score">0</integer>
 </resources>
