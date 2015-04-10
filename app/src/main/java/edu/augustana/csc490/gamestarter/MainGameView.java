@@ -2,6 +2,8 @@
 // Displays and controls the Cannon Game
 package edu.augustana.csc490.gamestarter;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -11,10 +13,7 @@ import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Point;
 import android.os.Bundle;
-import android.os.Handler;
-import android.support.annotation.NonNull;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -23,10 +22,7 @@ import android.view.SurfaceView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -34,7 +30,6 @@ import java.util.TimerTask;
 public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 {
     private static final String TAG = "Pop the Balloons!"; // for Log.w(TAG, ...)
-
     private GameThread gameThread; // runs the main game loop
     private Activity mainActivity; // keep a reference to the main Activity
     private TextView UIScore;
@@ -59,12 +54,15 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     private Paint easyPaint;
     private Paint blackPaint;
 
+    private Bitmap backgroundBitMap;
+
     private List<Balloon> allBalloons;
-    private int level = 0;
-    int score = 0;
-    int lives = 3;
-    int seconds = 0;
+    private int level;
+    int score;
+    int lives;
+    int seconds;
     boolean addBalloons = true;
+
 
     public MainGameView(Context context, AttributeSet atts)
     {
@@ -88,11 +86,8 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         blackPaint = new Paint();
         blackPaint.setColor(Color.BLACK);
 
-        allBalloons = new ArrayList<Balloon>();
-
-        timer = new Timer();
-        myTimerTask = new MyTimerTask();
-        timer.scheduleAtFixedRate(myTimerTask, 0, 1000);
+        backgroundBitMap = BitmapFactory.decodeResource(getResources(), R.drawable.sky);
+        backgroundBitMap = backgroundBitMap.createScaledBitmap(backgroundBitMap,675, 1000, true);
 
     }
 
@@ -110,11 +105,22 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
 
     public void startNewGame()
     {
+        allBalloons = new ArrayList<Balloon>();
+        score = 0;
+        lives = 3;
+        level = 0;
+        seconds = 0;
         UIScore = (TextView) mainActivity.findViewById(R.id.UIScore);
         UIScore.setText("" + score);
 
         UILives = (TextView) mainActivity.findViewById(R.id.UILives);
         UILives.setText("Lives:  " + lives);
+
+        timer = new Timer();
+        myTimerTask = new MyTimerTask();
+        timer.scheduleAtFixedRate(myTimerTask, 0, 1000);
+        isGameOver = true;
+
 
         if (isGameOver)
         {
@@ -124,10 +130,6 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
         }
     }
 
-    private void updateLevel()
-    {
-
-    }
     private void AddBalloons(int numberOfBalloons)
     {
         Random rand = new Random();
@@ -187,7 +189,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     public void updateView(Canvas canvas)
     {
         if (canvas != null) {
-            canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
+            canvas.drawBitmap(backgroundBitMap, 0, 0, backgroundPaint);
             for(int i = 0; i < allBalloons.size(); i++)
             {
                 Balloon thisBalloon = allBalloons.get(i);
@@ -201,13 +203,53 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
     // stop the game; may be called by the MainGameFragment onPause
     public void stopGame()
     {
-        if (gameThread != null)
+        if (gameThread != null){
             gameThread.setRunning(false);
+        }
+        showGameOverDialog();
     }
+
+    private void showGameOverDialog() {
+
+        final DialogFragment gameResult =
+                new DialogFragment() {
+                    // create an AlertDialog and return it
+                    @Override
+                    public Dialog onCreateDialog(Bundle bundle) {
+                        // create dialog displaying String resource for messageId
+                        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                        builder.setTitle("Game Over");
+                        builder.setMessage("You popped " + score + " balloons! Would you like to play again?");
+                        builder.setPositiveButton("Reset", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                startNewGame();
+                            }
+                        });
+                        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+
+                            }
+                        });
+                        return builder.create(); // return the AlertDialog
+                    } // end method onCreateDialog
+                }; // end DialogFragment anonymous inner class
+        // in GUI thread, use FragmentManager to display the DialogFragment
+        mainActivity.runOnUiThread(
+                new Runnable() {
+                    public void run() {
+                        gameResult.setCancelable(false); // modal dialog
+                        gameResult.show(mainActivity.getFragmentManager(), "results");
+                    }
+                } // end Runnable
+        ); // end call to runOnUiThread
+    } // end method showGameOverDialog
 
     // release resources; may be called by MainGameFragment onDestroy
     public void releaseResources()
     {
+
         // release any resources (e.g. SoundPool stuff)
     }
 
@@ -266,7 +308,7 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                     if (balloonTouch) {
                         if (currentBalloon.health == 1) {
                             allBalloons.remove(currentBalloon);
-                            score += 10;
+                            score += 1;
                             UIScore.setText("" + score);
                         }
                         else if(currentBalloon.health == 5)
@@ -325,7 +367,6 @@ public class MainGameView extends SurfaceView implements SurfaceHolder.Callback
                 try {
                     // get Canvas for exclusive drawing from this thread
                     canvas = surfaceHolder.lockCanvas(null);
-
                     // lock the surfaceHolder for drawing
                     synchronized (surfaceHolder) {
                         gameStep();         // update game state

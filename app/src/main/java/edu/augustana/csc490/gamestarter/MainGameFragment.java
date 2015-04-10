@@ -2,7 +2,9 @@
 // MainGameFragment creates and manages a CannonView
 package edu.augustana.csc490.gamestarter;
 
+import android.app.AlertDialog;
 import android.app.Fragment;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -42,7 +44,6 @@ public class MainGameFragment extends Fragment
    @Override
    public void onDestroy()
    {
-      super.onDestroy();
-      mainGameView.releaseResources();
+
    }
 }
